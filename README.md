@@ -3,8 +3,8 @@
 > A sophisticated C# desktop application integrating advanced AI models (DeepSeek via OpenModel) with Google Cloud Text-to-Speech for real-time conversational interactions. Built with Bunifu UI for a modern, dark-themed user experience.
 
 [![C#](https://img.shields.io/badge/C%23-.NET%20Framework-blue.svg?logo=c-sharp&logoColor=white)](https://docs.microsoft.com/en-us/dotnet/csharp/)
-[![Windows](https://img.shields.io/badge/Platform-Windows-lightgrey.svg?logo=windows)]()
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/Mohammad-Hasan-Kaman/kaman-ai-chat?color=blue)](https://github.com/Mohammad-Hasan-Kaman/kaman-ai-chat/releases)
 
 ---
 
