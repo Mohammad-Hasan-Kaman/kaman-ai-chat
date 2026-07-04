@@ -4,6 +4,7 @@
 
 [![C#](https://img.shields.io/badge/C%23-.NET%20Framework-blue.svg?logo=c-sharp&logoColor=white)](https://docs.microsoft.com/en-us/dotnet/csharp/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/Mohammad-Hasan-Kaman/kaman-ai-chat?color=blue)](https://github.com/Mohammad-Hasan-Kaman/kaman-ai-chat/releases)
 
 ---
 
