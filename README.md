@@ -42,7 +42,7 @@ This project is designed for **"AI-powered conversational assistance with speech
 
 > **Prerequisite:** You must obtain an API key from [OpenModel.ai](https://openmodel.ai) and configure your Google Cloud credentials for TTS.
 
-1.  Download the latest release (`ChatAI.exe`) from the [Releases](https://github.com/Mohammad-Hasan-Kaman/chatai/releases) page.
+1.  Download the latest release (`ChatAI.exe`) from the [Releases](https://github.com/Mohammad-Hasan-Kaman/kaman-ai-chat/releases) page.
 2.  Run the executable.
 3.  **Configuration:**
     - Open `Form1.cs` in the source code (if you have it).
@@ -55,7 +55,7 @@ This project is designed for **"AI-powered conversational assistance with speech
 
 ```bash
 # Clone the repository
-git clone https://github.com/Mohammad-Hasan-Kaman/chatai.git
+git clone https://github.com/Mohammad-Hasan-Kaman/kaman-ai-chat.git
 cd chatai
 
 # Open in Visual Studio
@@ -109,14 +109,17 @@ chatai/
 
 ## 🤝 Contributing
 
-Found a bug or have a suggestion? Please open an [Issue](https://github.com/Mohammad-Hasan-Kaman/chatai/issues).
+Found a bug or have a suggestion? Please open an [Issue](https://github.com/Mohammad-Hasan-Kaman/kaman-ai-chat/issues).
 Contributions are welcome!
 
 ---
 
 ## ⭐ Support
 
-If you find this tool useful, please give it a **star**! ⭐
+If you find this tool useful, please give it a **star**! ⭐  
+Your support motivates development.
+
+[![Star History](https://api.star-history.com/svg?repos=Mohammad-Hasan-Kaman/kaman-ai-chat&type=Date)](https://star-history.com/#Mohammad-Hasan-Kaman/kaman-ai-chat&Date)
 
 ---
 *Maintained by Mohammad Hasan Kaman | Last updated: July 2026*
