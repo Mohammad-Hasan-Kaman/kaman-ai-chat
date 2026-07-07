@@ -119,7 +119,7 @@ Contributions are welcome!
 If you find this tool useful, please give it a **star**! ⭐  
 Your support motivates development.
 
-[![Star History](https://api.star-history.com/svg?repos=Mohammad-Hasan-Kaman/kaman-ai-chat&type=Date)](https://star-history.com/#Mohammad-Hasan-Kaman/kaman-ai-chat&Date)
+[![Star History](https://api.star-history.com/svg?repos=kaman-ai-chat&type=Date)](https://star-history.com/#kaman-ai-chat&Date)
 
 ---
 *Maintained by Mohammad Hasan Kaman | Last updated: July 2026*
