@@ -9,19 +9,17 @@
 [Bb]in/
 [Oo]bj/
 
-## Ignore NuGet Packages (Very Important!)
+## Ignore NuGet Packages
 packages/
 *.nuget.props
 *.nuget.targets
 
-## Ignore API Keys and Secrets (Keep your keys safe!)
+## Ignore API Keys and Secrets
 *.api_key
 .env
 *.json.secret
+*.exe.config
 
 ## Ignore OS generated files
 .DS_Store
 Thumbs.db
-
-## Ignore Bunifu folder (Source code of UI library - optional to keep, but usually better to ignore if it's large)
-# Bunifu.UI.Form/

@@ -1,296 +1,586 @@
-﻿using System;
+using System;
+using System.Collections;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
-using System.Linq;
+using System.IO;
 using System.Media;
+using System.Net.Http;
+using System.Reflection;
+using System.Speech.Synthesis;
 using System.Text;
 using System.Threading.Tasks;
-using System.IO;
+using System.Web.Script.Serialization;
 using System.Windows.Forms;
-using System.Net.Http; // اضافه شده برای ارتباط با API جدید
-using Newtonsoft.Json; // از قبل در پروژه شما نصب است
-using System.Messaging.Design;
-using System.Speech.Synthesis;
 
 namespace chatai
 {
     public partial class Form1 : Form
     {
+        private const string ApiUrl = "https://api.openmodel.ai/v1/messages";
+        private const string ModelName = "deepseek-v4-flash";
+        private const string Placeholder = "ask me...";
+
+        private static readonly HttpClient httpClient = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(120)
+        };
+
+        private readonly JavaScriptSerializer json = new JavaScriptSerializer();
+
+        private SpeechSynthesizer synthesizer;
+        private SoundPlayer sendSound;
+        private SoundPlayer receiveSound;
+        private bool busy;
+
         public Form1()
         {
             InitializeComponent();
-            bunifuImageButton1.Enabled = true;
-            bot_L.Hide();
-            label1.Hide();
-            textBox1.Text = "ask me...";
-            textBox1.ForeColor = Color.DarkGray;
-        }
 
-        int top = 9;
-        int left = 12;
-        int count = 0;
-        SpeechSynthesizer synthesizer = new SpeechSynthesizer();
-
-        // تعریف کلاینت به صورت استاتیک برای بهینه‌سازی منابع سیستم
-        private static readonly HttpClient httpClient = new HttpClient();
-
-        // متد اختصاصی جدید برای دریافت پاسخ از OpenModel (با فرمت دیپ‌سیک)
-        private async Task<string> GetDeepSeekResponse(string userInput)
-        {
-            string url = "https://api.openmodel.ai/v1/messages";
-            string apiKey = "YOUR_API_KEY_HERE"; // حتماً کلید دریافت شده از openmodel.ai را بگذارید
-
-            var requestBody = new
-            {
-                model = "deepseek-v4-flash",
-                max_tokens = 1024,
-                system = "You are a helpful AI assistant. Always reply in Persian (Farsi) or the language the user speaks to you. Avoid outputting Chinese unless requested.",
-                messages = new[]
-                {
-            new { role = "user", content = userInput }
-        }
-            };
-
-            string jsonPayload = JsonConvert.SerializeObject(requestBody);
-            var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
-
-            httpClient.DefaultRequestHeaders.Clear();
-            httpClient.DefaultRequestHeaders.Add("x-api-key", apiKey);
-            httpClient.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
+            sendSound = CreateSoundPlayer("SOUND1.wav");
+            receiveSound = CreateSoundPlayer("SOUND2.wav");
 
             try
             {
-                HttpResponseMessage response = await httpClient.PostAsync(url, content);
+                synthesizer = new SpeechSynthesizer();
+                synthesizer.Rate = -1;
+            }
+            catch (Exception)
+            {
+                // Speech synthesis is optional; the chat still works without it.
+                synthesizer = null;
+            }
 
-                if (!response.IsSuccessStatusCode)
+            bot_L.Visible = false;
+            textBox1.Text = Placeholder;
+            textBox1.ForeColor = Color.DarkGray;
+        }
+
+        /// <summary>
+        /// Loads a wav file that is embedded in the assembly.
+        /// </summary>
+        private static Stream LoadStream(string resourceName)
+        {
+            Assembly assembly = typeof(Form1).Assembly;
+
+            Stream stream = assembly.GetManifestResourceStream(resourceName);
+            if (stream != null) return stream;
+
+            string stem = resourceName;
+            int dot = stem.LastIndexOf('.');
+            if (dot > 0) stem = stem.Substring(0, dot);
+
+            foreach (string candidate in assembly.GetManifestResourceNames())
+            {
+                string candidateStem = candidate;
+                int candidateDot = candidateStem.LastIndexOf('.');
+                if (candidateDot > 0) candidateStem = candidateStem.Substring(0, candidateDot);
+
+                if (string.Equals(candidateStem, stem, StringComparison.OrdinalIgnoreCase)
+                    || candidateStem.EndsWith("." + stem, StringComparison.OrdinalIgnoreCase))
                 {
-                    string errorContent = await response.Content.ReadAsStringAsync();
-                    string shortError = errorContent.Length > 60 ? errorContent.Substring(0, 60) + "..." : errorContent;
-                    return $"API Error ({response.StatusCode}): {shortError}";
+                    return assembly.GetManifestResourceStream(candidate);
                 }
+            }
 
-                string jsonResponse = await response.Content.ReadAsStringAsync();
+            return null;
+        }
 
-                if (string.IsNullOrEmpty(jsonResponse))
+        /// <summary>
+        /// Creates a sound player for an embedded wav file and preloads it.
+        /// </summary>
+        private static SoundPlayer CreateSoundPlayer(string resourceName)
+        {
+            try
+            {
+                Stream stream = LoadStream(resourceName);
+                if (stream == null) return null;
+
+                var player = new SoundPlayer(stream);
+                player.Load();
+                return player;
+            }
+            catch (Exception)
+            {
+                // Sound is optional; the chat still works without it.
+                return null;
+            }
+        }
+
+        #region API access
+
+        /// <summary>
+        /// Sends the user prompt to the OpenModel messages endpoint and returns
+        /// the assistant reply.
+        /// </summary>
+        private async Task<string> GetDeepSeekResponse(string userInput)
+        {
+            string apiKey = Settings.GetApiKey();
+            if (string.IsNullOrEmpty(apiKey))
+            {
+                return "No API key configured. Open the menu and choose \"Set API key...\".";
+            }
+
+            var requestBody = new Dictionary<string, object>
+            {
+                { "model", ModelName },
+                { "max_tokens", 1024 },
                 {
-                    return "Error: Received empty response.";
+                    "system",
+                    "You are a helpful AI assistant. Always reply in Persian (Farsi) or the language the user speaks to you. Avoid outputting Chinese unless requested."
+                },
+                {
+                    "messages", new object[]
+                    {
+                        new Dictionary<string, object>
+                        {
+                            { "role", "user" },
+                            { "content", userInput }
+                        }
+                    }
                 }
+            };
 
-                // ۱. تلاش برای تجزیه بر اساس فرمت استاندارد Anthropic
+            string jsonPayload = json.Serialize(requestBody);
+            var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+            using (var request = new HttpRequestMessage(HttpMethod.Post, ApiUrl))
+            {
+                request.Headers.TryAddWithoutValidation("x-api-key", apiKey);
+                request.Headers.TryAddWithoutValidation("anthropic-version", "2023-06-01");
+                request.Content = content;
+
                 try
                 {
-                    dynamic resultObject = JsonConvert.DeserializeObject(jsonResponse);
-                    if (resultObject?.content != null && resultObject.content.Count > 0 && resultObject.content[0].text != null)
+                    HttpResponseMessage response = await httpClient.SendAsync(request).ConfigureAwait(true);
+
+                    string responseBody = await response.Content.ReadAsStringAsync().ConfigureAwait(true);
+
+                    if (!response.IsSuccessStatusCode)
                     {
-                        return resultObject.content[0].text.ToString();
+                        string shortError = responseBody.Length > 120 ? responseBody.Substring(0, 120) + "..." : responseBody;
+                        return "API Error (" + (int)response.StatusCode + "): " + shortError;
                     }
 
-                    // ۲. تلاش برای تجزیه بر اساس فرمت استاندارد OpenAI (در صورت تغییر ساختار در سمت سرور)
-                    if (resultObject?.choices != null && resultObject.choices.Count > 0 && resultObject.choices[0].message?.content != null)
+                    return ExtractReply(responseBody);
+                }
+                catch (TaskCanceledException)
+                {
+                    return "The request timed out. Please try again.";
+                }
+                catch (HttpRequestException ex)
+                {
+                    return "Network error: " + ex.Message;
+                }
+                catch (Exception ex)
+                {
+                    return "Exception: " + ex.Message;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Extracts the assistant text from an Anthropic-style, an OpenAI-style,
+        /// or a raw-text response body.
+        /// </summary>
+        private string ExtractReply(string responseBody)
+        {
+            if (string.IsNullOrEmpty(responseBody))
+            {
+                return "Error: received an empty response.";
+            }
+
+            // 1. Standard Anthropic shape: { "content": [ { "text": "..." } ] }
+            try
+            {
+                var parsed = json.DeserializeObject(responseBody) as Dictionary<string, object>;
+                if (parsed != null)
+                {
+                    object contentValue;
+                    if (parsed.TryGetValue("content", out contentValue))
                     {
-                        return resultObject.choices[0].message.content.ToString();
+                        object first = FirstElement(contentValue);
+                        if (first != null)
+                        {
+                            var firstItem = first as Dictionary<string, object>;
+                            if (firstItem != null)
+                            {
+                                object textValue;
+                                if (firstItem.TryGetValue("text", out textValue) && textValue != null)
+                                {
+                                    return textValue.ToString();
+                                }
+                            }
+                        }
+                    }
+
+                    // 2. Standard OpenAI shape: { "choices": [ { "message": { "content": "..." } } ] }
+                    object choicesValue;
+                    if (parsed.TryGetValue("choices", out choicesValue))
+                    {
+                        object firstChoiceObject = FirstElement(choicesValue);
+                        if (firstChoiceObject != null)
+                        {
+                            var firstChoice = firstChoiceObject as Dictionary<string, object>;
+                            if (firstChoice != null)
+                            {
+                                object messageValue;
+                                if (firstChoice.TryGetValue("message", out messageValue))
+                                {
+                                    var message = messageValue as Dictionary<string, object>;
+                                    if (message != null)
+                                    {
+                                        object contentText;
+                                        if (message.TryGetValue("content", out contentText) && contentText != null)
+                                        {
+                                            return contentText.ToString();
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
-                catch { /* در صورت خطای ساختاری داینامیک، به سراغ متد متنی می‌رود */ }
+            }
+            catch (ArgumentException)
+            {
+                // Fall through to the text-based extraction below.
+            }
+            catch (InvalidOperationException)
+            {
+                // Fall through to the text-based extraction below.
+            }
 
-                // ۳. استخراج هوشمند و متنی (Regex/Substring) برای مواقعی که کلیدهای JSON تغییر کرده‌اند
-                // جستجوی فیلد text
-                int textIndex = jsonResponse.IndexOf("\"text\":\"");
-                if (textIndex != -1)
+            // 3. Text-based fallback for unexpected response shapes.
+            string text = ExtractRawField(responseBody, "\"text\":\"");
+            if (text != null) return text;
+
+            text = ExtractRawField(responseBody, "\"content\":\"");
+            if (text != null) return text;
+
+            string safeSummary = responseBody.Length > 160 ? responseBody.Substring(0, 160) + "..." : responseBody;
+            return "Parse failed. Raw data: " + safeSummary;
+        }
+
+        /// <summary>
+        /// Returns the first element of a deserialized JSON array, regardless of
+        /// whether it was materialized as an ArrayList or an object[].
+        /// </summary>
+        private static object FirstElement(object value)
+        {
+            var list = value as ArrayList;
+            if (list != null) return list.Count > 0 ? list[0] : null;
+
+            var array = value as object[];
+            if (array != null) return array.Length > 0 ? array[0] : null;
+
+            return null;
+        }
+
+        private static string ExtractRawField(string body, string marker)
+        {
+            int index = body.IndexOf(marker, StringComparison.Ordinal);
+            if (index < 0) return null;
+
+            int start = index + marker.Length;
+            int end = body.IndexOf('"', start);
+            if (end < 0) return null;
+
+            return body.Substring(start, end - start).Replace("\\n", "\n").Replace("\\\"", "\"");
+        }
+
+        #endregion
+
+        #region Chat flow
+
+        private async void sendButton_Click(object sender, EventArgs e)
+        {
+            await SendCurrentMessage();
+        }
+
+        private async void textBox1_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode != Keys.Enter) return;
+            if (e.Shift) return;
+
+            e.SuppressKeyPress = true;
+            await SendCurrentMessage();
+        }
+
+        private async Task SendCurrentMessage()
+        {
+            if (busy) return;
+
+            string userInput = textBox1.Text;
+            if (string.IsNullOrWhiteSpace(userInput) || userInput == Placeholder)
+            {
+                MessageBox.Show("The sending box is empty", "Send Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            busy = true;
+            sendButton.Enabled = false;
+            bot_L.Visible = true;
+            textBox1.Clear();
+            textBox1.ForeColor = Color.Black;
+
+            try
+            {
+                AddUserMessage(userInput);
+                PlaySound(sendSound);
+
+                string result = await GetDeepSeekResponse(userInput);
+
+                Label aiLabel = AddAiLabel();
+                aiLabel.Text = result;
+                LayoutBubble(aiLabel, true);
+                await TypeOut(aiLabel, result);
+                PlaySound(receiveSound);
+
+                if (speakRepliesToolStripMenuItem.Checked)
                 {
-                    int start = textIndex + 8;
-                    int end = jsonResponse.IndexOf("\"", start);
-                    if (end != -1) return jsonResponse.Substring(start, end - start).Replace("\\n", "\n");
+                    Speak(result);
                 }
-
-                // جستجوی فیلد content
-                int contentIndex = jsonResponse.IndexOf("\"content\":\"");
-                if (contentIndex != -1)
-                {
-                    int start = contentIndex + 11;
-                    int end = jsonResponse.IndexOf("\"", start);
-                    if (end != -1) return jsonResponse.Substring(start, end - start).Replace("\\n", "\n");
-                }
-
-                // اگر هیچ روشی پاسخ نداد، بخش بسیار کوتاهی از خروجی را نشان بده تا از صفحه بیرون نزند
-                string safeSummary = jsonResponse.Length > 80 ? jsonResponse.Substring(0, 80) + "..." : jsonResponse;
-                return $"Parse Failed. Data: {safeSummary}";
             }
             catch (Exception ex)
             {
-                return $"Exception: {ex.Message}";
+                Label aiLabel = AddAiLabel();
+                aiLabel.Text = "Unexpected error: " + ex.Message;
+                LayoutBubble(aiLabel, true);
+            }
+            finally
+            {
+                bot_L.Visible = false;
+                sendButton.Enabled = true;
+                busy = false;
+                ScrollToBottom();
             }
         }
 
-        private async void bunifuImageButton1_Click(object sender, EventArgs e)
+        private Label AddUserMessage(string text)
         {
-            if (textBox1.Text == string.Empty || string.IsNullOrWhiteSpace(textBox1.Text))
+            Label label = new Label
             {
-                MessageBox.Show("The sending box is empty", "Send Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                AutoSize = true,
+                MaximumSize = new Size(Math.Max(120, panel2.DisplayRectangle.Width - 20), 0),
+                BackColor = Color.FromArgb(255, 220, 220),
+                Font = new Font("Segoe UI", 11F, FontStyle.Regular),
+                ForeColor = Color.FromArgb(120, 20, 20),
+                Padding = new Padding(8, 5, 8, 5),
+                Text = text
+            };
+
+            panel2.Controls.Add(label);
+            LayoutBubble(label, false);
+            return label;
+        }
+
+        /// <summary>
+        /// Creates the label that holds an AI reply. The text is applied before the
+        /// bubble is positioned so the right alignment uses the final width.
+        /// </summary>
+        private Label AddAiLabel()
+        {
+            Label label = new Label
+            {
+                AutoSize = true,
+                MaximumSize = new Size(Math.Max(120, panel2.DisplayRectangle.Width - 20), 0),
+                BackColor = Color.FromArgb(205, 235, 255),
+                Font = new Font("Segoe UI", 11F, FontStyle.Regular),
+                ForeColor = Color.FromArgb(20, 40, 80),
+                Padding = new Padding(8, 5, 8, 5)
+            };
+
+            panel2.Controls.Add(label);
+            return label;
+        }
+
+
+        private void LayoutBubble(Label label, bool alignRight)
+        {
+            // PerformLayout first so an AutoSize label reports its final width.
+            panel2.PerformLayout();
+
+            // DisplayRectangle already accounts for the panel padding and for a
+            // visible vertical scrollbar, unlike ClientSize.
+            Rectangle area = panel2.DisplayRectangle;
+
+            int x = alignRight
+                ? Math.Max(area.Left, area.Right - label.Width - 4)
+                : area.Left;
+
+            label.Location = new Point(x, NextBubbleTop());
+        }
+
+        private int NextBubbleTop()
+        {
+            int bottom = panel2.DisplayRectangle.Top;
+            foreach (Control control in panel2.Controls)
+            {
+                if (control.Bottom > bottom) bottom = control.Bottom;
             }
-            else
+
+            return bottom + 10;
+        }
+
+        /// <summary>
+        /// Reveals the reply character by character.
+        /// </summary>
+        private async Task TypeOut(Label label, string text)
+        {
+            if (string.IsNullOrEmpty(text))
             {
-                SoundPlayer Send = new SoundPlayer("SOUND1.wav");
-                SoundPlayer Rcv = new SoundPlayer("SOUND2.wav");
-                count++;
-                for (int i = 0; i < count; i++)
+                label.Text = string.Empty;
+                return;
+            }
+
+            label.Text = string.Empty;
+            LayoutBubble(label, true);
+
+            const int charactersPerTick = 3;
+            const int tickMilliseconds = 12;
+
+            var shown = new StringBuilder();
+            for (int i = 0; i < text.Length; i += charactersPerTick)
+            {
+                int end = Math.Min(i + charactersPerTick, text.Length);
+                shown.Append(text, i, end - i);
+                label.Text = shown.ToString();
+                LayoutBubble(label, true);
+                ScrollToBottom();
+                await Task.Delay(tickMilliseconds).ConfigureAwait(true);
+            }
+
+            label.Text = shown.ToString();
+            LayoutBubble(label, true);
+        }
+
+        private void ScrollToBottom()
+        {
+            panel2.PerformLayout();
+
+            int contentHeight = 0;
+            foreach (Control control in panel2.Controls)
+            {
+                if (control.Bottom > contentHeight) contentHeight = control.Bottom;
+            }
+
+            int target = Math.Max(0, contentHeight - panel2.ClientSize.Height + 12);
+            panel2.AutoScrollPosition = new Point(0, target);
+        }
+
+        private static void PlaySound(SoundPlayer player)
+        {
+            try
+            {
+                if (player != null) player.Play();
+            }
+            catch (Exception)
+            {
+                // A missing audio device must not interrupt the conversation.
+            }
+        }
+
+        #endregion
+
+        #region Speech
+
+        /// <summary>
+        /// Speaks the given text with the Windows speech engine.
+        /// </summary>
+        private void Speak(string text)
+        {
+            if (synthesizer == null || string.IsNullOrWhiteSpace(text)) return;
+
+            try
+            {
+                synthesizer.SpeakAsync(text);
+            }
+            catch (Exception)
+            {
+                // Speech is a convenience feature; ignore failures.
+            }
+        }
+
+        private void stopSpeakingToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (synthesizer == null) return;
+
+            try
+            {
+                synthesizer.SpeakAsyncCancelAll();
+            }
+            catch (Exception)
+            {
+                // Ignore.
+            }
+        }
+
+        private void speakRepliesToolStripMenuItem_CheckedChanged(object sender, EventArgs e)
+        {
+            if (speakRepliesToolStripMenuItem.Checked) return;
+
+            try
+            {
+                if (synthesizer != null) synthesizer.SpeakAsyncCancelAll();
+            }
+            catch (Exception)
+            {
+                // Ignore.
+            }
+        }
+
+        #endregion
+
+        #region Menu
+
+        private void menuButton_Click(object sender, EventArgs e)
+        {
+            contextMenuStrip1.Show(menuButton, new Point(0, -contextMenuStrip1.Size.Height));
+        }
+
+        private void clearChatToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            panel2.Controls.Clear();
+            ScrollToBottom();
+        }
+
+        private void setApiKeyToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            using (var dialog = new ApiKeyForm())
+            {
+                if (dialog.ShowDialog(this) != DialogResult.OK) return;
+
+                if (dialog.Remember)
                 {
-                    bunifuImageButton1.Enabled = false;
-                    bot_L.Show();
-                    Label lnl_mess_user = new Label();
-                    panel2.Controls.Add(lnl_mess_user);
-                    string userInput = textBox1.Text;
-                    textBox1.Text = "";
-                    lnl_mess_user.AutoSize = true;
-                    lnl_mess_user.BackColor = Color.Red;
-                    lnl_mess_user.Font = new Font("Microsoft Sans Serif", 15.75F, FontStyle.Bold, GraphicsUnit.Point, ((byte)(0)));
-                    lnl_mess_user.Location = new Point(left, top);
-                    lnl_mess_user.Name = "label1";
-                    lnl_mess_user.Size = new Size(76, 25);
-                    lnl_mess_user.TabIndex = 0;
-                    lnl_mess_user.Text = userInput;
-                    Send.Play();
-                    top = lnl_mess_user.Bottom + 30;
-                    panel2.VerticalScroll.Value = panel2.VerticalScroll.Maximum;
-                    panel2.PerformLayout();
-                    count--;
-
-                    // فراخوانی متد جدید به جای OpenAI
-                    var result = await GetDeepSeekResponse(userInput);
-
-                    Label lnl_mess_ai = new Label();
-                    panel2.Controls.Add(lnl_mess_ai);
-                    lnl_mess_ai.AutoSize = true;
-                    lnl_mess_ai.BackColor = Color.SkyBlue;
-                    lnl_mess_ai.Font = new Font("Microsoft Sans Serif", 15.75F, FontStyle.Bold, GraphicsUnit.Point, ((byte)(0)));
-                    lnl_mess_ai.Location = new Point(left, top);
-                    lnl_mess_ai.Name = "label1";
-                    lnl_mess_ai.Size = new Size(76, 25);
-                    lnl_mess_ai.TabIndex = 0;
-
-                    // افکت تایپ انیمیشنی کاراکترها
-                    for (int t = 0; t < result.Length; t++)
-                    {
-                        System.Threading.Thread.Sleep(100);
-                        lnl_mess_ai.Text = lnl_mess_ai.Text.Substring(0, t) + result[t].ToString() + "|";
-                        Application.DoEvents();
-                    }
-                    if (lnl_mess_ai.Text.Length > 0)
-                        lnl_mess_ai.Text = lnl_mess_ai.Text.Substring(0, lnl_mess_ai.Text.Length - 1);
-
-                    Rcv.Play();
-                    top = lnl_mess_ai.Bottom + 30;
-                    count--;
-                    bot_L.Hide();
-                    bunifuImageButton1.Enabled = true;
-                    panel2.VerticalScroll.Value = panel2.VerticalScroll.Maximum;
-                    panel2.PerformLayout();
+                    Settings.SaveApiKey(dialog.ApiKey);
                 }
-            }
-        }
 
-        private void bunifuImageButton2_Click(object sender, EventArgs e)
-        {
-            contextMenuStrip1.Show(bunifuImageButton2, new Point(0, -contextMenuStrip1.Size.Height));
+                MessageBox.Show(
+                    "API key saved. It is stored on this computer only and is not part of the application.",
+                    "API key",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
         }
 
         private void textBox1_Enter(object sender, EventArgs e)
         {
-            if (textBox1.Text == "ask me...")
+            if (textBox1.Text == Placeholder)
             {
-                textBox1.Text = "";
+                textBox1.Text = string.Empty;
                 textBox1.ForeColor = Color.Black;
             }
         }
 
         private void textBox1_Leave(object sender, EventArgs e)
         {
-            if (textBox1.Text == "")
+            if (textBox1.Text.Length == 0)
             {
-                textBox1.Text = "ask me...";
+                textBox1.Text = Placeholder;
                 textBox1.ForeColor = Color.DarkGray;
             }
         }
 
-        private async void textBox1_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.KeyCode == Keys.Enter)
-            {
-                if (textBox1.Text == string.Empty || string.IsNullOrWhiteSpace(textBox1.Text))
-                {
-                    MessageBox.Show("The sending box is empty", "Send Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-                else
-                {
-                    SoundPlayer Send = new SoundPlayer("SOUND1.wav");
-                    SoundPlayer Rcv = new SoundPlayer("SOUND2.wav");
-                    count++;
-                    for (int i = 0; i < count; i++)
-                    {
-                        bunifuImageButton1.Enabled = false;
-                        bot_L.Show();
-                        Label lnl_mess_user = new Label();
-                        panel2.Controls.Add(lnl_mess_user);
-                        string userInput = textBox1.Text;
-                        textBox1.Text = "";
-                        lnl_mess_user.AutoSize = true;
-                        lnl_mess_user.BackColor = Color.Red;
-                        lnl_mess_user.Font = new Font("Microsoft Sans Serif", 15.75F, FontStyle.Bold, GraphicsUnit.Point, ((byte)(0)));
-                        lnl_mess_user.Location = new Point(left, top);
-                        lnl_mess_user.Name = "label1";
-                        lnl_mess_user.Size = new Size(76, 25);
-                        lnl_mess_user.TabIndex = 0;
-                        lnl_mess_user.Text = userInput;
-                        Send.Play();
-                        top = lnl_mess_user.Bottom + 30;
-                        count--;
-                        panel2.VerticalScroll.Value = panel2.VerticalScroll.Maximum;
-                        panel2.PerformLayout();
-
-                        // فراخوانی متد جدید به جای OpenAI
-                        var result = await GetDeepSeekResponse(userInput);
-
-                        Label lnl_mess_ai = new Label();
-                        panel2.Controls.Add(lnl_mess_ai);
-                        lnl_mess_ai.AutoSize = true;
-                        lnl_mess_ai.BackColor = Color.SkyBlue;
-                        lnl_mess_ai.Font = new Font("Microsoft Sans Serif", 15.75F, FontStyle.Bold, GraphicsUnit.Point, ((byte)(0)));
-                        lnl_mess_ai.Location = new Point(left, top);
-                        lnl_mess_ai.Name = "label1";
-                        lnl_mess_ai.Size = new Size(76, 25);
-                        lnl_mess_ai.TabIndex = 0;
-
-                        // افکت تایپ انیمیشنی کاراکترها
-                        for (int t = 0; t < result.Length; t++)
-                        {
-                            System.Threading.Thread.Sleep(100);
-                            lnl_mess_ai.Text = lnl_mess_ai.Text.Substring(0, t) + result[t].ToString() + "|";
-                            Application.DoEvents();
-                        }
-                        if (lnl_mess_ai.Text.Length > 0)
-                            lnl_mess_ai.Text = lnl_mess_ai.Text.Substring(0, lnl_mess_ai.Text.Length - 1);
-
-                        Rcv.Play();
-                        top = lnl_mess_ai.Bottom + 30;
-                        count--;
-                        bot_L.Hide();
-                        bunifuImageButton1.Enabled = true;
-                        panel2.AutoScrollPosition = new Point(0, panel1.Height);
-                        panel2.VerticalScroll.Value = panel2.VerticalScroll.Maximum;
-                        panel2.PerformLayout();
-                    }
-                }
-            }
-        }
-
-        private void clearChatToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            top = 9;
-            left = 12;
-            count = 0;
-            panel2.Controls.Clear();
-        }
+        #endregion
     }
 }
