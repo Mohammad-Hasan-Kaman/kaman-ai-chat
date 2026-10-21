@@ -26,7 +26,6 @@ This project is designed for **"AI-powered conversational assistance with speech
   - Configurable system prompts for **Persian (Farsi)** or multi-language responses.
 - 🗣️ **High-Quality Text-to-Speech (TTS):**
   - **Native `System.Speech.Synthesis`:** speaks every AI response using the voices already installed on Windows — no extra API key and no per-request cost.
-  - **Fallback:** Native `System.Speech.Synthesis` (Windows Built-in voices) if Google API is unavailable.
 - 🎨 **Modern UI/UX:**
   - **Bunifu UI Framework:** custom caption buttons, image buttons and modern UI components.
   - Streaming response rendering that types out the answer as it arrives.
