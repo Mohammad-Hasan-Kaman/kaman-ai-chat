@@ -28,8 +28,8 @@ This project is designed for **"AI-powered conversational assistance with speech
   - **Google Cloud Text-to-Speech API:** Natural-sounding voice synthesis for AI responses.
   - **Fallback:** Native `System.Speech.Synthesis` (Windows Built-in voices) if Google API is unavailable.
 - 🎨 **Modern UI/UX:**
-  - **Bunifu UI Framework:** Sleek, dark-themed interface with smooth animations and custom controls.
-  - Responsive chat bubbles and real-time response rendering.
+  - **Bunifu UI Framework:** custom caption buttons, image buttons and modern UI components.
+  - Streaming response rendering that types out the answer as it arrives.
 - 🛠️ **Developer Friendly:**
   - Modular design for easy addition of new AI providers or voice engines.
   - Async/await pattern for non-blocking API calls.
@@ -40,7 +40,7 @@ This project is designed for **"AI-powered conversational assistance with speech
 
 ### 1. For End Users (Compiled Executable)
 
-> **Prerequisite:** You must obtain an API key from [OpenModel.ai](https://openmodel.ai) and configure your Google Cloud credentials for TTS.
+> **Prerequisite:** You must obtain an API key from [OpenModel.ai](https://openmodel.ai).
 
 1.  Download the latest release (`kaman-ai-chat.exe`) from the [Releases](https://github.com/Mohammad-Hasan-Kaman/kaman-ai-chat/releases) page.
 2.  Run the executable.
@@ -48,7 +48,6 @@ This project is designed for **"AI-powered conversational assistance with speech
     - Open `Form1.cs` in the source code (if you have it).
     - Locate the `apiKey` variable in the `GetDeepSeekResponse` method.
     - Replace `"YOUR_API_KEY_HERE"` with your actual OpenModel/DeepSeek API key.
-    - *(Optional)* Set up Google Cloud Application Default Credentials for TTS.
 4.  Start chatting!
 
 ### 2. For Developers (Source Code)
@@ -73,11 +72,10 @@ cd chatai
 |------------|------|
 | **C# (.NET Framework)** | Core programming language |
 | **Windows Forms** | Desktop UI Framework |
-| **Bunifu UI WinForms** | Modern UI Components (Dark Mode, Animations) |
+| **Bunifu UI WinForms** | Modern UI Components |
 | **HttpClient** | REST API Communication |
 | **Newtonsoft.Json** | JSON Parsing |
-| **Google.Cloud.TextToSpeech.V1** | Google Cloud TTS Integration |
-| **System.Speech.Synthesis** | Native Windows TTS Fallback |
+| **System.Speech.Synthesis** | Native Windows Text-to-Speech |
 | **OpenModel.ai API** | AI Language Model (DeepSeek) |
 
 ---
@@ -87,7 +85,7 @@ cd chatai
 1.  **Launch the App:** Run the executable.
 2.  **Type a Message:** Enter your query in the text box (e.g., "Hello", " Tell me a joke").
 3.  **Get AI Response:** The app sends the request to the AI model and displays the text.
-4.  **Voice Output:** The app automatically converts the text response to speech using Google Cloud TTS (or native voices).
+4.  **Voice Output:** The app speaks the text response with the Windows built-in voice engine.
 
 ---
 
@@ -124,4 +122,4 @@ Your support motivates development.
 ---
 *Maintained by Mohammad Hasan Kaman | Last updated: October 2026*
 
-> **Disclaimer:** This tool is for educational and personal use. API costs (OpenModel/Google Cloud) are the responsibility of the user.
+> **Disclaimer:** This tool is for educational and personal use. API costs (OpenModel) are the responsibility of the user.
