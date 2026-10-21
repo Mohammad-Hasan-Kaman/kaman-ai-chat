@@ -61,12 +61,12 @@ A small, dependency-free desktop client for talking to an LLM and hearing the an
 **Prefer not to use the dialog?** Set the key before launching:
 
 ```bash
-set KAMAN_AI_CHAT_API_KEY=your-key-here
+set KAMAN_AI_CHAT_API_KEY=your-key
 kaman-ai-chat.exe
 ```
 
 ```powershell
-$env:KAMAN_AI_CHAT_API_KEY = "your-key-here"
+$env:KAMAN_AI_CHAT_API_KEY = "your-key"
 .\kaman-ai-chat.exe
 ```
 

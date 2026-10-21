@@ -179,7 +179,7 @@ namespace chatai
         }
 
         /// <summary>
-        /// Extracts the assistant text from an Anthropic-style, an OpenAI-style,
+        /// Extracts the assistant text from a messages-style, a chat-completions-style,
         /// or a raw-text response body.
         /// </summary>
         private string ExtractReply(string responseBody)
@@ -213,7 +213,7 @@ namespace chatai
                         }
                     }
 
-                    // 2. Standard OpenAI shape: { "choices": [ { "message": { "content": "..." } } ] }
+                    // 2. Chat-completions shape: { "choices": [ { "message": { "content": "..." } } ] }
                     object choicesValue;
                     if (parsed.TryGetValue("choices", out choicesValue))
                     {
