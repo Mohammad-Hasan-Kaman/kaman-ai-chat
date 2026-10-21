@@ -1,6 +1,6 @@
 # 💬 Kaman Chat AI - Desktop Assistant
 
-> A sophisticated C# desktop application integrating advanced AI models (DeepSeek via OpenModel) with Google Cloud Text-to-Speech for real-time conversational interactions. Built with Bunifu UI for a modern, dark-themed user experience.
+> A sophisticated C# desktop application integrating advanced AI models (DeepSeek via OpenModel) with speech synthesis for real-time conversational interactions. Built with the Bunifu UI framework.
 
 [![C#](https://img.shields.io/badge/C%23-.NET%20Framework-blue.svg?logo=c-sharp&logoColor=white)](https://docs.microsoft.com/en-us/dotnet/csharp/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -25,7 +25,7 @@ This project is designed for **"AI-powered conversational assistance with speech
   - Connects to **OpenModel.ai** API supporting **DeepSeek** models (e.g., `deepseek-v4-flash`).
   - Configurable system prompts for **Persian (Farsi)** or multi-language responses.
 - 🗣️ **High-Quality Text-to-Speech (TTS):**
-  - **Google Cloud Text-to-Speech API:** Natural-sounding voice synthesis for AI responses.
+  - **Native `System.Speech.Synthesis`:** speaks every AI response using the voices already installed on Windows — no extra API key and no per-request cost.
   - **Fallback:** Native `System.Speech.Synthesis` (Windows Built-in voices) if Google API is unavailable.
 - 🎨 **Modern UI/UX:**
   - **Bunifu UI Framework:** custom caption buttons, image buttons and modern UI components.
