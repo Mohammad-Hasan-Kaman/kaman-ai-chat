@@ -42,7 +42,7 @@ This project is designed for **"AI-powered conversational assistance with speech
 
 > **Prerequisite:** You must obtain an API key from [OpenModel.ai](https://openmodel.ai) and configure your Google Cloud credentials for TTS.
 
-1.  Download the latest release (`ChatAI.exe`) from the [Releases](https://github.com/Mohammad-Hasan-Kaman/kaman-ai-chat/releases) page.
+1.  Download the latest release (`kaman-ai-chat.exe`) from the [Releases](https://github.com/Mohammad-Hasan-Kaman/kaman-ai-chat/releases) page.
 2.  Run the executable.
 3.  **Configuration:**
     - Open `Form1.cs` in the source code (if you have it).
@@ -122,6 +122,6 @@ Your support motivates development.
 [![Stars](https://img.shields.io/github/stars/Mohammad-Hasan-Kaman/kaman-ai-chat?style=for-the-badge&logo=github&color=blue)](https://github.com/Mohammad-Hasan-Kaman/kaman-ai-chat/stargazers)
 
 ---
-*Maintained by Mohammad Hasan Kaman | Last updated: July 2026*
+*Maintained by Mohammad Hasan Kaman | Last updated: October 2026*
 
 > **Disclaimer:** This tool is for educational and personal use. API costs (OpenModel/Google Cloud) are the responsibility of the user.
