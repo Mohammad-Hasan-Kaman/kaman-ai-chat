@@ -5,7 +5,7 @@
 > UI suite, no side-by-side DLLs, one `.exe`.
 
 [![C#](https://img.shields.io/badge/C%23-.NET%20Framework%204.8-blue.svg?logo=c-sharp&logoColor=white)](https://learn.microsoft.com/en-us/dotnet/csharp/)
-[![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4.svg?logo=windows&logoColor=white)](https://learn.microsoft.com/en-us/windows/win32/winprog/windows-programming-basics)
+[![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4.svg?logo=windows&logoColor=white)](https://learn.microsoft.com/en-us/windows/win32/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/Mohammad-Hasan-Kaman/kaman-ai-chat?color=blue)](https://github.com/Mohammad-Hasan-Kaman/kaman-ai-chat/releases)
 
